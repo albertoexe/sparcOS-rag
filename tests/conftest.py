@@ -3,9 +3,12 @@ import pytest
 import psycopg
 from sparcos_rag.store import Store
 
+# IMPORTANT: tests DROP/CREATE the chunks table, so they MUST target a
+# throwaway database, never the real index DB (sparcos_rag). Keep this
+# pointed at a dedicated *_test database.
 DSN = os.environ.get(
     "TEST_DATABASE_URL",
-    "postgresql://sparcos:sparcos@localhost:5433/sparcos_rag",
+    "postgresql://sparcos:sparcos@localhost:5433/sparcos_rag_test",
 )
 
 
