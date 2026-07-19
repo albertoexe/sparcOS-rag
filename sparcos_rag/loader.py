@@ -30,7 +30,7 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
 
 def load_vault(root: Path) -> Iterator[Document]:
     for path in sorted(root.rglob("*.md")):
-        raw = path.read_text(encoding="utf-8")
+        raw = path.read_text(encoding="utf-8").replace("\x00", "")
         fm, body = _parse_frontmatter(raw)
         if not body.strip():
             continue
