@@ -1,0 +1,5 @@
+---
+type: entity
+---
+# Entità
+Testo.
