@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from sparcos_rag.config import load
 from sparcos_rag.embedder import Embedder
 from sparcos_rag.store import Store
-from sparcos_rag.indexer import index_vault
+from sparcos_rag.indexer import index_vault, status_vault, StatusReport
 from sparcos_rag.retriever import hybrid_search
 from sparcos_rag.answerer import answer
 
@@ -30,6 +30,33 @@ def index():
     store, embedder = _deps(cfg)
     stats = index_vault(cfg.vault_path, embedder, store)
     click.echo(f"indexed={stats['indexed']} skipped={stats['skipped']} deleted={stats['deleted']}")
+
+
+def render_status(report: StatusReport, last_at, verbose: bool) -> str:
+    lines = [
+        f"indicizzate={len(report.indexed)} stale={len(report.stale)} "
+        f"nuove={len(report.new)} rimosse={len(report.removed)}"
+    ]
+    if last_at is not None:
+        lines.append(f"ultimo index: {last_at:%Y-%m-%d %H:%M}")
+    if verbose:
+        for label, paths in (("stale", report.stale), ("nuove", report.new),
+                             ("rimosse", report.removed)):
+            for p in paths:
+                lines.append(f"  {label}: {p}")
+    verdict = "STALE -> serve reindex" if report.is_stale() else "pulito"
+    lines.append(verdict)
+    return "\n".join(lines)
+
+
+@cli.command()
+@click.option("--verbose", is_flag=True, help="elenca gli slug per categoria")
+def status(verbose):
+    cfg = load()
+    store, _ = _deps(cfg)
+    report = status_vault(cfg.vault_path, store)
+    click.echo(render_status(report, store.last_indexed_at(), verbose))
+    raise SystemExit(1 if report.is_stale() else 0)
 
 
 @cli.command()
