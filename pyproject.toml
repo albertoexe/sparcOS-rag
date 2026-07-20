@@ -10,6 +10,7 @@ dependencies = [
   "click>=8.1",
   "python-dotenv>=1.0",
   "pyyaml>=6.0",
+  "mcp[cli]>=1.2",
 ]
 
 [project.optional-dependencies]
@@ -17,6 +18,7 @@ dev = ["pytest>=8.0"]
 
 [project.scripts]
 sparcos-rag = "sparcos_rag.cli:cli"
+sparcos-rag-mcp = "sparcos_rag.mcp_server:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
