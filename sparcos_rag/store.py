@@ -50,6 +50,10 @@ class Store:
         row = self.conn.execute("SELECT model_name FROM chunks LIMIT 1").fetchone()
         return row[0] if row else None
 
+    def last_indexed_at(self):
+        row = self.conn.execute("SELECT max(updated_at) FROM chunks").fetchone()
+        return row[0] if row else None
+
     def existing_hashes(self) -> dict[str, str]:
         rows = self.conn.execute(
             "SELECT DISTINCT source_path, content_hash FROM chunks").fetchall()
