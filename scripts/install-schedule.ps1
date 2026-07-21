@@ -1,7 +1,10 @@
 <#
 .SYNOPSIS
   Registers (or refreshes) the Windows Task Scheduler job that keeps the
-  sparcOS RAG index fresh: runs reindex.ps1 at logon and daily at 08:00.
+  sparcOS RAG index fresh: runs reindex.ps1 daily at 16:30.
+
+  If the PC is off at 16:30 the run is simply skipped (no catch-up):
+  StartWhenAvailable is left OFF on purpose.
 
   Idempotent: re-running replaces the existing task. No admin required
   (runs as the current user, only while logged on).
@@ -16,21 +19,19 @@ $action = New-ScheduledTaskAction `
   -Execute 'powershell.exe' `
   -Argument ("-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"{0}`"" -f $script)
 
-$atLogon = New-ScheduledTaskTrigger -AtLogOn
-$daily   = New-ScheduledTaskTrigger -Daily -At 08:00
-$triggers = @($atLogon, $daily)
+$daily = New-ScheduledTaskTrigger -Daily -At 16:30
 
+# No -StartWhenAvailable: a missed run (PC off at 16:30) is skipped, not caught up later.
 $settings = New-ScheduledTaskSettingsSet `
-  -StartWhenAvailable `
   -DontStopOnIdleEnd `
   -ExecutionTimeLimit (New-TimeSpan -Hours 2)
 
 Register-ScheduledTask `
   -TaskName $taskName `
   -Action $action `
-  -Trigger $triggers `
+  -Trigger $daily `
   -Settings $settings `
-  -Description 'sparcOS RAG: incremental reindex to keep the vault index fresh (login + daily 08:00).' `
+  -Description 'sparcOS RAG: incremental reindex to keep the vault index fresh (daily 16:30, skipped if PC off).' `
   -Force | Out-Null
 
-Write-Output "Registrato task '$taskName' (At log on + Daily 08:00)."
+Write-Output "Registrato task '$taskName' (Daily 16:30, nessun recupero se il PC e' spento)."
