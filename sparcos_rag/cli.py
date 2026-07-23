@@ -19,6 +19,15 @@ def _deps(cfg):
     return store, embedder
 
 
+def _maybe_reranker(cfg):
+    """Build a Reranker only if enabled in config; else None (default path)."""
+    if not cfg.rerank_enabled:
+        return None
+    from sparcos_rag.reranker import Reranker
+
+    return Reranker(model_path=cfg.rerank_model_path)
+
+
 @click.group()
 def cli():
     pass
@@ -65,7 +74,14 @@ def query(text):
     import anthropic
     cfg = load()
     store, embedder = _deps(cfg)
-    hits = hybrid_search(text, embedder, store, top_k=cfg.top_k)
+    hits = hybrid_search(
+        text,
+        embedder,
+        store,
+        top_k=cfg.top_k,
+        reranker=_maybe_reranker(cfg),
+        rerank_candidate_k=cfg.rerank_candidate_k,
+    )
     client = anthropic.Anthropic(api_key=cfg.anthropic_api_key)
     ans = answer(text, hits, client, model=cfg.answer_model)
     click.echo(ans.text)

@@ -14,6 +14,13 @@ class Config:
     anthropic_api_key: str
     answer_model: str
     top_k: int
+    rerank_enabled: bool
+    rerank_model_path: str | None
+    rerank_candidate_k: int
+
+
+def _as_bool(v: str) -> bool:
+    return v.strip().lower() in ("1", "true", "yes", "on")
 
 
 def load(env: Mapping[str, str] | None = None) -> Config:
@@ -27,4 +34,7 @@ def load(env: Mapping[str, str] | None = None) -> Config:
         anthropic_api_key=e["ANTHROPIC_API_KEY"],
         answer_model=e["ANSWER_MODEL"],
         top_k=int(e.get("TOP_K", "10")),
+        rerank_enabled=_as_bool(e.get("RERANK_ENABLED", "false")),
+        rerank_model_path=e.get("RERANK_MODEL_PATH") or None,
+        rerank_candidate_k=int(e.get("RERANK_CANDIDATE_K", "20")),
     )

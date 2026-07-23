@@ -25,11 +25,23 @@ def rrf_fuse(result_lists, k_const: int = 60, weights=None) -> list[FusedHit]:
     return sorted(fused, key=lambda f: f.score, reverse=True)
 
 
-def hybrid_search(query, embedder, store, top_k=10, per_file_cap=3, candidate_k=20):
+def hybrid_search(
+    query,
+    embedder,
+    store,
+    top_k=10,
+    per_file_cap=3,
+    candidate_k=20,
+    reranker=None,
+    rerank_candidate_k=None,
+):
     qvec = embedder.embed([query])[0]
     vec_hits = store.vector_search(qvec, candidate_k)
     fts_hits = store.fulltext_search(query, candidate_k)
     fused = rrf_fuse([vec_hits, fts_hits])
+    if reranker is not None:
+        pool = fused[:rerank_candidate_k] if rerank_candidate_k else fused
+        fused = reranker.rerank(query, pool)
     capped: list[FusedHit] = []
     per_file: dict[str, int] = {}
     for f in fused:
