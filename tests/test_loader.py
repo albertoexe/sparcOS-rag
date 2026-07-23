@@ -57,3 +57,10 @@ def test_is_denied_matches_prefix_and_filename():
     assert _is_denied("archives/processed/x.md", DEFAULT_DENYLIST) is True
     assert _is_denied("a/b/AGENTS.md", DEFAULT_DENYLIST) is True
     assert _is_denied("archives/wiki/concepts/rag.md", DEFAULT_DENYLIST) is False
+
+
+def test_strips_zero_width_and_bom(tmp_path):
+    body = "he​llo﻿ wor‍ld"
+    _write(tmp_path, "a.md", f"---\nx: 1\n---\n{body}")
+    doc = next(iter(load_vault(tmp_path)))
+    assert doc.body == "hello world"

@@ -40,6 +40,15 @@ def _is_denied(rel_path: str, denylist: dict) -> bool:
     return rel_path.rsplit("/", 1)[-1] in denylist["filenames"]
 
 
+_INVISIBLE = ("\x00", "​", "‌", "‍", "⁠", "﻿")
+
+
+def _clean(text: str) -> str:
+    for ch in _INVISIBLE:
+        text = text.replace(ch, "")
+    return text
+
+
 def load_vault(root: Path, denylist: dict | None = None) -> Iterator[Document]:
     if denylist is None:
         denylist = DEFAULT_DENYLIST
@@ -47,7 +56,7 @@ def load_vault(root: Path, denylist: dict | None = None) -> Iterator[Document]:
         rel = str(path.relative_to(root)).replace("\\", "/")
         if _is_denied(rel, denylist):
             continue
-        raw = path.read_text(encoding="utf-8").replace("\x00", "")
+        raw = _clean(path.read_text(encoding="utf-8"))
         fm, body = _parse_frontmatter(raw)
         if not body.strip():
             continue
