@@ -21,7 +21,7 @@ class StatusReport:
         return bool(self.stale or self.new or self.removed)
 
 
-def status_vault(root: Path, store) -> StatusReport:
+def status_vault(root: Path, store, denylist: dict | None = None) -> StatusReport:
     """Compare current vault hashes against the index without touching it.
 
     Mirrors index_vault's view of the vault (loader skips empty-body notes),
@@ -33,7 +33,7 @@ def status_vault(root: Path, store) -> StatusReport:
     stale: list[str] = []
     new: list[str] = []
 
-    for doc in load_vault(root):
+    for doc in load_vault(root, denylist):
         seen.add(doc.source_path)
         stored_hash = existing.get(doc.source_path)
         if stored_hash is None:
@@ -47,7 +47,7 @@ def status_vault(root: Path, store) -> StatusReport:
     return StatusReport(sorted(indexed), sorted(stale), sorted(new), removed)
 
 
-def index_vault(root: Path, embedder, store, batch_size: int = 64) -> dict:
+def index_vault(root: Path, embedder, store, batch_size: int = 64, denylist: dict | None = None) -> dict:
     indexed_model = store.indexed_model()
     if indexed_model and indexed_model != embedder.model_name:
         raise ModelMismatch(
@@ -57,7 +57,7 @@ def index_vault(root: Path, embedder, store, batch_size: int = 64) -> dict:
     seen: set[str] = set()
     stats = {"indexed": 0, "skipped": 0, "deleted": 0}
 
-    for doc in load_vault(root):
+    for doc in load_vault(root, denylist):
         seen.add(doc.source_path)
         if existing.get(doc.source_path) == doc.content_hash:
             stats["skipped"] += 1

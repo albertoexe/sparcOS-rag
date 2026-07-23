@@ -28,7 +28,7 @@ def cli():
 def index():
     cfg = load()
     store, embedder = _deps(cfg)
-    stats = index_vault(cfg.vault_path, embedder, store)
+    stats = index_vault(cfg.vault_path, embedder, store, denylist=cfg.denylist)
     click.echo(f"indexed={stats['indexed']} skipped={stats['skipped']} deleted={stats['deleted']}")
 
 
@@ -54,7 +54,7 @@ def render_status(report: StatusReport, last_at, verbose: bool) -> str:
 def status(verbose):
     cfg = load()
     store, _ = _deps(cfg)
-    report = status_vault(cfg.vault_path, store)
+    report = status_vault(cfg.vault_path, store, denylist=cfg.denylist)
     click.echo(render_status(report, store.last_indexed_at(), verbose))
     raise SystemExit(1 if report.is_stale() else 0)
 

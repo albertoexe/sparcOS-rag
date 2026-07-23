@@ -14,6 +14,24 @@ class Config:
     anthropic_api_key: str
     answer_model: str
     top_k: int
+    denylist: dict
+
+
+def _parse_denylist(raw: str) -> dict:
+    # NOTE: setting INDEX_DENYLIST *fully replaces* DEFAULT_DENYLIST — it does
+    # not merge. If you override, include every rule you still want (defaults
+    # included), or you silently lose the built-in filtering. Empty/unset →
+    # use DEFAULT_DENYLIST. Entry ending with "/" is a dir prefix, else a filename.
+    from sparcos_rag.loader import DEFAULT_DENYLIST
+    if not raw.strip():
+        return DEFAULT_DENYLIST
+    dirs, files = [], []
+    for entry in raw.split(","):
+        e = entry.strip()
+        if not e:
+            continue
+        (dirs if e.endswith("/") else files).append(e)
+    return {"dir_prefixes": tuple(dirs), "filenames": tuple(files)}
 
 
 def load(env: Mapping[str, str] | None = None) -> Config:
@@ -27,4 +45,5 @@ def load(env: Mapping[str, str] | None = None) -> Config:
         anthropic_api_key=e["ANTHROPIC_API_KEY"],
         answer_model=e["ANSWER_MODEL"],
         top_k=int(e.get("TOP_K", "10")),
+        denylist=_parse_denylist(e.get("INDEX_DENYLIST", "")),
     )

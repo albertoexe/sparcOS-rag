@@ -23,3 +23,31 @@ def test_load_reads_env():
 def test_load_missing_key_raises():
     with pytest.raises(KeyError):
         load({})
+
+
+def test_denylist_defaults_when_env_absent():
+    from sparcos_rag.loader import DEFAULT_DENYLIST
+    env = {
+        "ANTHROPIC_API_KEY": "sk-test",
+        "DATABASE_URL": "postgresql://u:p@localhost/db",
+        "VAULT_PATH": "/tmp/vault",
+        "EMBED_MODEL": "bge-m3",
+        "EMBED_DIM": "1024",
+        "ANSWER_MODEL": "claude-x",
+    }
+    assert load(env).denylist == DEFAULT_DENYLIST
+
+
+def test_denylist_env_parsed():
+    env = {
+        "ANTHROPIC_API_KEY": "sk-test",
+        "DATABASE_URL": "postgresql://u:p@localhost/db",
+        "VAULT_PATH": "/tmp/vault",
+        "EMBED_MODEL": "bge-m3",
+        "EMBED_DIM": "1024",
+        "ANSWER_MODEL": "claude-x",
+        "INDEX_DENYLIST": "drop/,SKIP.md",
+    }
+    dl = load(env).denylist
+    assert dl["dir_prefixes"] == ("drop/",)
+    assert dl["filenames"] == ("SKIP.md",)
