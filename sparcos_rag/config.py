@@ -18,6 +18,10 @@ class Config:
 
 
 def _parse_denylist(raw: str) -> dict:
+    # NOTE: setting INDEX_DENYLIST *fully replaces* DEFAULT_DENYLIST — it does
+    # not merge. If you override, include every rule you still want (defaults
+    # included), or you silently lose the built-in filtering. Empty/unset →
+    # use DEFAULT_DENYLIST. Entry ending with "/" is a dir prefix, else a filename.
     from sparcos_rag.loader import DEFAULT_DENYLIST
     if not raw.strip():
         return DEFAULT_DENYLIST

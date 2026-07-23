@@ -21,7 +21,7 @@ class StatusReport:
         return bool(self.stale or self.new or self.removed)
 
 
-def status_vault(root: Path, store, denylist=None) -> StatusReport:
+def status_vault(root: Path, store, denylist: dict | None = None) -> StatusReport:
     """Compare current vault hashes against the index without touching it.
 
     Mirrors index_vault's view of the vault (loader skips empty-body notes),
@@ -47,7 +47,7 @@ def status_vault(root: Path, store, denylist=None) -> StatusReport:
     return StatusReport(sorted(indexed), sorted(stale), sorted(new), removed)
 
 
-def index_vault(root: Path, embedder, store, batch_size: int = 64, denylist=None) -> dict:
+def index_vault(root: Path, embedder, store, batch_size: int = 64, denylist: dict | None = None) -> dict:
     indexed_model = store.indexed_model()
     if indexed_model and indexed_model != embedder.model_name:
         raise ModelMismatch(

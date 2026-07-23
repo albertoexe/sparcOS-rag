@@ -33,7 +33,9 @@ drowning real answers and hurting effective recall. Invisible characters
 - Helper `_is_denied(rel_path: str, denylist) -> bool` operating on the posix relative path.
 - Config-driven override: `Config.denylist` populated from env `INDEX_DENYLIST`
   (comma-separated entries; a trailing `/` means dir-prefix, otherwise filename).
-  Empty/unset env → use `DEFAULT_DENYLIST`. CLI `index` passes `cfg.denylist` to `load_vault`.
+  Empty/unset env → use `DEFAULT_DENYLIST`. **Setting `INDEX_DENYLIST` fully REPLACES
+  the defaults (no merge)** — an override must re-list every rule it still wants.
+  CLI `index` passes `cfg.denylist` to `load_vault`.
 
 ### Unit 2 — Invisible-character cleanup in the loader
 - Extend the existing `.replace("\x00", "")` to also strip zero-width / BOM code points:
