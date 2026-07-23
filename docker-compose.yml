@@ -2,6 +2,7 @@ services:
   db:
     image: pgvector/pgvector:pg16
     container_name: sparcos-rag-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: sparcos
       POSTGRES_PASSWORD: sparcos
