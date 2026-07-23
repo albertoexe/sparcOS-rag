@@ -28,14 +28,31 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
     return fm, m.group(2)
 
 
-def load_vault(root: Path) -> Iterator[Document]:
+DEFAULT_DENYLIST = {
+    "dir_prefixes": (".trash/", ".obsidian/", "archives/templates/", "archives/processed/"),
+    "filenames": ("AGENTS.md", "CLAUDE.md", "COMMANDS.md", "index.md"),
+}
+
+
+def _is_denied(rel_path: str, denylist: dict) -> bool:
+    if any(rel_path.startswith(p) for p in denylist["dir_prefixes"]):
+        return True
+    return rel_path.rsplit("/", 1)[-1] in denylist["filenames"]
+
+
+def load_vault(root: Path, denylist: dict | None = None) -> Iterator[Document]:
+    if denylist is None:
+        denylist = DEFAULT_DENYLIST
     for path in sorted(root.rglob("*.md")):
+        rel = str(path.relative_to(root)).replace("\\", "/")
+        if _is_denied(rel, denylist):
+            continue
         raw = path.read_text(encoding="utf-8").replace("\x00", "")
         fm, body = _parse_frontmatter(raw)
         if not body.strip():
             continue
         yield Document(
-            source_path=str(path.relative_to(root)).replace("\\", "/"),
+            source_path=rel,
             frontmatter=fm,
             body=body.strip(),
             content_hash=hashlib.sha256(raw.encode("utf-8")).hexdigest(),
