@@ -1,19 +1,20 @@
 """Qwen3-Reranker-0.6B backend via llama-cpp-python (GGUF, no torch).
 
-SCAFFOLD — not yet validated end-to-end against a real GGUF.
-
-Optional dependency: ``pip install llama-cpp-python``.
-Model: a GGUF build of Qwen3-Reranker-0.6B (Hugging Face). Point
-``RERANK_MODEL_PATH`` at the ``.gguf`` file. This adapter is imported lazily
-by ``reranker.Reranker`` so the rest of the system runs without it installed.
+Optional dependency: ``pip install llama-cpp-python`` (CPU prebuilt wheels at
+https://abetlen.github.io/llama-cpp-python/whl/cpu). Model: a GGUF build of
+Qwen3-Reranker-0.6B (e.g. ``ggml-org/Qwen3-Reranker-0.6B``). Point
+``RERANK_MODEL_PATH`` at the ``.gguf`` file. Imported lazily by
+``reranker.Reranker`` so the rest of the system runs without it installed.
 
 Contract: ``score(query, documents) -> list[float]`` (higher = more relevant).
 
-Qwen3-Reranker judges relevance as a yes/no next-token decision. We build the
-official instruct prompt per (query, document) pair and read the probability
-mass on the "yes" token from the logits. The exact template/tokens must be
-confirmed against the chosen GGUF before flipping RERANK_ENABLED on — see the
-model card. Until then this path is behind the default-off config flag.
+How it works (validated 2026-07-23 against the q8_0 GGUF):
+Qwen3-Reranker is a causal LM that judges relevance as a yes/no decision.
+llama.cpp exposes this via RANK pooling: load with ``embedding=True`` and
+``pooling_type=LLAMA_POOLING_TYPE_RANK``, feed the official instruct prompt for
+each (query, document) pair, and ``embed()`` returns a single sigmoid score in
+[0, 1]. Empirically a relevant pair scores ~0.999 and an unrelated one ~0.0,
+so the input formatting below is load-bearing — do not "simplify" it.
 """
 from __future__ import annotations
 
@@ -34,6 +35,15 @@ def _format(query: str, document: str) -> str:
     )
 
 
+def _scalar(value) -> float:
+    """RANK pooling yields one score per sequence; unwrap any list nesting."""
+    while isinstance(value, list):
+        if not value:
+            return 0.0
+        value = value[0]
+    return float(value)
+
+
 class Qwen3RerankerBackend:
     def __init__(self, model_path: str | None, llama=None, n_ctx: int = 8192):
         if not model_path:
@@ -44,22 +54,30 @@ class Qwen3RerankerBackend:
         self.model_path = model_path
         if llama is None:
             try:
+                import llama_cpp
                 from llama_cpp import Llama
             except ImportError as exc:  # pragma: no cover - optional dep
                 raise ImportError(
-                    "llama-cpp-python is not installed. Run "
-                    "`pip install llama-cpp-python` to use the reranker."
+                    "llama-cpp-python is not installed. Install the CPU wheel: "
+                    "pip install llama-cpp-python --extra-index-url "
+                    "https://abetlen.github.io/llama-cpp-python/whl/cpu"
                 ) from exc
-            llama = Llama(model_path=model_path, n_ctx=n_ctx, logits_all=False, verbose=False)
+            llama = Llama(
+                model_path=model_path,
+                embedding=True,
+                pooling_type=llama_cpp.LLAMA_POOLING_TYPE_RANK,
+                n_ctx=n_ctx,
+                verbose=False,
+            )
         self._llama = llama
 
     def score(self, query: str, documents: list[str]) -> list[float]:
-        # SCAFFOLD: compute P(yes) per (query, document) via the yes/no logit.
-        # Left unimplemented until validated against a concrete GGUF so we never
-        # ship a silently-wrong ranking. Enable by implementing the logit read
-        # here and setting RERANK_ENABLED=true.
-        raise NotImplementedError(
-            "Qwen3RerankerBackend.score is scaffolded but not validated. "
-            "Implement the yes-token logit read for your GGUF, or inject a "
-            "tested backend into Reranker(backend=...)."
-        )
+        if not documents:
+            return []
+        prompts = [_format(query, d) for d in documents]
+        raw = self._llama.embed(prompts)
+        # embed(list) should return one result per prompt; if the shape is
+        # unexpected, fall back to scoring each prompt individually.
+        if isinstance(raw, list) and len(raw) == len(prompts):
+            return [_scalar(r) for r in raw]
+        return [_scalar(self._llama.embed(p)) for p in prompts]

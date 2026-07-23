@@ -65,3 +65,34 @@ def test_missing_model_path_raises_clear_error():
 
     with pytest.raises(ValueError):
         Qwen3RerankerBackend(model_path=None)
+
+
+# --- Integration: real GGUF backend (skipped if model or llama-cpp absent) ---
+import os
+from pathlib import Path
+
+_MODEL = os.environ.get(
+    "RERANK_MODEL_PATH",
+    str(Path.home() / ".cache/qmd/models/hf_ggml-org_qwen3-reranker-0.6b-q8_0.gguf"),
+)
+
+
+@pytest.mark.skipif(
+    os.environ.get("RERANK_INTEGRATION") != "1" or not Path(_MODEL).exists(),
+    reason="opt-in only (set RERANK_INTEGRATION=1); loading the GGUF can crash "
+    "on native teardown inside pytest on Windows — validated via measure_rerank.py",
+)
+def test_real_backend_ranks_relevant_above_irrelevant():
+    pytest.importorskip("llama_cpp")
+    from sparcos_rag._qwen_reranker import Qwen3RerankerBackend
+
+    backend = Qwen3RerankerBackend(_MODEL, n_ctx=2048)
+    scores = backend.score(
+        "Chi e Giovanni Beggiato?",
+        [
+            "Giovanni Beggiato e un cliente storico, referente area produzione.",
+            "La ricetta della carbonara richiede uova, guanciale e pecorino.",
+        ],
+    )
+    assert len(scores) == 2
+    assert scores[0] > scores[1]
